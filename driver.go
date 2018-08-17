@@ -1,6 +1,7 @@
 package dbstats
 
 import (
+	"context"
 	"database/sql/driver"
 	"io"
 	"time"
@@ -26,6 +27,17 @@ type Hook interface {
 	Queried(d time.Duration, query string, err error)
 	Execed(d time.Duration, query string, err error)
 	RowIterated(err error)
+
+	ConnOpenedContext(ctx context.Context, err error)
+	ConnClosedContext(ctx context.Context, err error)
+	StmtPreparedContext(ctx context.Context, query string, err error)
+	StmtClosedContext(ctx context.Context, err error)
+	TxBeganContext(ctx context.Context, err error)
+	TxCommittedContext(ctx context.Context, err error)
+	TxRolledbackContext(ctx context.Context, err error)
+	QueriedContext(ctx context.Context, d time.Duration, query string, err error)
+	ExecedContext(ctx context.Context, d time.Duration, query string, err error)
+	RowIteratedContext(ctx context.Context, err error)
 }
 
 type Driver interface {
@@ -69,6 +81,29 @@ func (s *statsDriver) Open(name string) (driver.Conn, error) {
 	return statc, nil
 }
 
+func (s *statsDriver) OpenContext(ctx context.Context, name string) (driver.Conn, error) {
+	c, err := s.open(name)
+	s.ConnOpenedContext(ctx, err)
+	if err != nil {
+		return c, err
+	}
+	statc := &statsConn{d: s, wrapped: c}
+	q, isQ := c.(driver.Queryer)
+	e, isE := c.(driver.Execer)
+	if isE && isQ {
+		return &statsExecerQueryer{
+			statsConn:    statc,
+			statsQueryer: &statsQueryer{statsConn: statc, wrapped: q},
+			statsExecer:  &statsExecer{statsConn: statc, wrapped: e},
+		}, nil
+	} else if isQ {
+		return &statsQueryer{statsConn: statc, wrapped: q}, nil
+	} else if isE {
+		return &statsExecer{statsConn: statc, wrapped: e}, nil
+	}
+	return statc, nil
+}
+
 func (s *statsDriver) AddHook(h Hook) {
 	s.hooks = append(s.hooks, h)
 }
@@ -77,9 +112,19 @@ func (s *statsDriver) ConnOpened(err error) {
 		h.ConnOpened(err)
 	}
 }
+func (s *statsDriver) ConnOpenedContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.ConnOpenedContext(ctx, err)
+	}
+}
 func (s *statsDriver) ConnClosed(err error) {
 	for _, h := range s.hooks {
 		h.ConnClosed(err)
+	}
+}
+func (s *statsDriver) ConnClosedContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.ConnClosedContext(ctx, err)
 	}
 }
 func (s *statsDriver) StmtPrepared(query string, err error) {
@@ -87,9 +132,19 @@ func (s *statsDriver) StmtPrepared(query string, err error) {
 		h.StmtPrepared(query, err)
 	}
 }
+func (s *statsDriver) StmtPreparedContext(ctx context.Context, query string, err error) {
+	for _, h := range s.hooks {
+		h.StmtPreparedContext(ctx, query, err)
+	}
+}
 func (s *statsDriver) StmtClosed(err error) {
 	for _, h := range s.hooks {
 		h.StmtClosed(err)
+	}
+}
+func (s *statsDriver) StmtClosedContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.StmtClosedContext(ctx, err)
 	}
 }
 func (s *statsDriver) TxBegan(err error) {
@@ -97,9 +152,19 @@ func (s *statsDriver) TxBegan(err error) {
 		h.TxBegan(err)
 	}
 }
+func (s *statsDriver) TxBeganContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.TxBeganContext(ctx, err)
+	}
+}
 func (s *statsDriver) TxCommitted(err error) {
 	for _, h := range s.hooks {
 		h.TxCommitted(err)
+	}
+}
+func (s *statsDriver) TxCommittedContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.TxCommittedContext(ctx, err)
 	}
 }
 func (s *statsDriver) TxRolledback(err error) {
@@ -107,9 +172,19 @@ func (s *statsDriver) TxRolledback(err error) {
 		h.TxRolledback(err)
 	}
 }
+func (s *statsDriver) TxRolledbackContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.TxRolledbackContext(ctx, err)
+	}
+}
 func (s *statsDriver) Queried(d time.Duration, query string, err error) {
 	for _, h := range s.hooks {
 		h.Queried(d, query, err)
+	}
+}
+func (s *statsDriver) QueriedContext(ctx context.Context, d time.Duration, query string, err error) {
+	for _, h := range s.hooks {
+		h.QueriedContext(ctx, d, query, err)
 	}
 }
 func (s *statsDriver) Execed(d time.Duration, query string, err error) {
@@ -117,9 +192,19 @@ func (s *statsDriver) Execed(d time.Duration, query string, err error) {
 		h.Execed(d, query, err)
 	}
 }
+func (s *statsDriver) ExecedContext(ctx context.Context, d time.Duration, query string, err error) {
+	for _, h := range s.hooks {
+		h.ExecedContext(ctx, d, query, err)
+	}
+}
 func (s *statsDriver) RowIterated(err error) {
 	for _, h := range s.hooks {
 		h.RowIterated(err)
+	}
+}
+func (s *statsDriver) RowIteratedContext(ctx context.Context, err error) {
+	for _, h := range s.hooks {
+		h.RowIteratedContext(ctx, err)
 	}
 }
 
@@ -160,6 +245,29 @@ func (c *statsConn) Begin() (driver.Tx, error) {
 	return tx, err
 }
 
+// there're no close and Begin for ConnPrepareContext
+type statsConnContext struct {
+	d       *statsDriver
+	wrapped driver.ConnPrepareContext
+}
+
+func (c *statsConnContext) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	s, err := c.wrapped.PrepareContext(ctx, query)
+	c.d.StmtPreparedContext(ctx, query, err)
+	if err == nil {
+		cc, isCc := s.(driver.ColumnConverter)
+		if isCc {
+			s = &statsColumnConverter{
+				statsStmt: &statsStmt{d: c.d, wrapped: s, query: query},
+				wrapped:   cc,
+			}
+		} else {
+			s = &statsStmt{d: c.d, wrapped: s, query: query}
+		}
+	}
+	return s, err
+}
+
 type statsQueryer struct {
 	*statsConn
 	wrapped driver.Queryer
@@ -172,6 +280,22 @@ func (q *statsQueryer) Query(query string, args []driver.Value) (driver.Rows, er
 	q.statsConn.d.Queried(dur, query, err)
 	if err == nil {
 		r = &statsRows{d: q.statsConn.d, wrapped: r}
+	}
+	return r, err
+}
+
+type statsQueryerContext struct {
+	*statsConnContext
+	wrapped driver.QueryerContext
+}
+
+func (q *statsQueryerContext) QueryerContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	start := time.Now()
+	r, err := q.wrapped.QueryContext(ctx, query, args)
+	dur := time.Now().Sub(start)
+	q.statsConnContext.d.QueriedContext(ctx, dur, query, err)
+	if err == nil {
+		r = &statsRows{d: q.statsConnContext.d, wrapped: r}
 	}
 	return r, err
 }
