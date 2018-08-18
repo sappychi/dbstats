@@ -1,6 +1,7 @@
 package dbstats
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 )
@@ -130,8 +131,23 @@ func (h *CounterHook) ConnOpened(err error) {
 	}
 }
 
+// ConnOpenedContext implements ConnOpened of the Hook interface.
+func (h *CounterHook) ConnOpenedContext(ctx context.Context, err error) {
+	if err == nil {
+		atomic.AddInt64(&h.openConns, 1)
+		atomic.AddInt64(&h.totalConns, 1)
+	} else {
+		atomic.AddInt64(&h.connErrs, 1)
+	}
+}
+
 // ConnClosed implements ConnClosed of the Hook interface.
 func (h *CounterHook) ConnClosed(err error) {
+	atomic.AddInt64(&h.openConns, -1)
+}
+
+// ConnClosedContext implements ConnClosed of the Hook interface.
+func (h *CounterHook) ConnClosedContext(ctx context.Context, err error) {
 	atomic.AddInt64(&h.openConns, -1)
 }
 
@@ -145,13 +161,38 @@ func (h *CounterHook) StmtPrepared(query string, err error) {
 	}
 }
 
+// StmtPreparedContext implements StmtPrepared of the Hook interface.
+func (h *CounterHook) StmtPreparedContext(ctx context.Context, query string, err error) {
+	if err == nil {
+		atomic.AddInt64(&h.openStmts, 1)
+		atomic.AddInt64(&h.totalStmts, 1)
+	} else {
+		atomic.AddInt64(&h.stmtErrs, 1)
+	}
+}
+
 // StmtClosed implements StmtClosed of the Hook interface.
 func (h *CounterHook) StmtClosed(err error) {
 	atomic.AddInt64(&h.openStmts, -1)
 }
 
+// StmtClosedContext implements StmtClosed of the Hook interface.
+func (h *CounterHook) StmtClosedContext(ctx context.Context, err error) {
+	atomic.AddInt64(&h.openStmts, -1)
+}
+
 // TxBegan implements TxBegan of the Hook interface.
 func (h *CounterHook) TxBegan(err error) {
+	if err == nil {
+		atomic.AddInt64(&h.openTxs, 1)
+		atomic.AddInt64(&h.totalTxs, 1)
+	} else {
+		atomic.AddInt64(&h.txOpenErrs, 1)
+	}
+}
+
+// TxBeganContext implements TxBegan of the Hook interface.
+func (h *CounterHook) TxBeganContext(ctx context.Context, err error) {
 	if err == nil {
 		atomic.AddInt64(&h.openTxs, 1)
 		atomic.AddInt64(&h.totalTxs, 1)
@@ -170,8 +211,28 @@ func (h *CounterHook) TxCommitted(err error) {
 	}
 }
 
+// TxCommittedContext implements TxCommitted of the Hook interface.
+func (h *CounterHook) TxCommittedContext(ctx context.Context, err error) {
+	atomic.AddInt64(&h.openTxs, -1)
+	if err == nil {
+		atomic.AddInt64(&h.committedTxs, 1)
+	} else {
+		atomic.AddInt64(&h.txCloseErrs, 1)
+	}
+}
+
 // TxRolledback implements TxRolledback of the Hook interface.
 func (h *CounterHook) TxRolledback(err error) {
+	atomic.AddInt64(&h.openTxs, -1)
+	if err == nil {
+		atomic.AddInt64(&h.rolledbackTxs, 1)
+	} else {
+		atomic.AddInt64(&h.txCloseErrs, 1)
+	}
+}
+
+// TxRolledbackContext implements TxRolledback of the Hook interface.
+func (h *CounterHook) TxRolledbackContext(ctx context.Context, err error) {
 	atomic.AddInt64(&h.openTxs, -1)
 	if err == nil {
 		atomic.AddInt64(&h.rolledbackTxs, 1)
@@ -189,6 +250,15 @@ func (h *CounterHook) Queried(d time.Duration, query string, err error) {
 	}
 }
 
+// QueriedContext implements Queried of the Hook interface.
+func (h *CounterHook) QueriedContext(ctx context.Context, d time.Duration, query string, err error) {
+	if err == nil {
+		atomic.AddInt64(&h.queries, 1)
+	} else {
+		atomic.AddInt64(&h.queryErrs, 1)
+	}
+}
+
 // Execed implements Execed of the Hook interface.
 func (h *CounterHook) Execed(d time.Duration, query string, err error) {
 	if err == nil {
@@ -198,8 +268,26 @@ func (h *CounterHook) Execed(d time.Duration, query string, err error) {
 	}
 }
 
+// ExecedContext implements Execed of the Hook interface.
+func (h *CounterHook) ExecedContext(ctx context.Context, d time.Duration, query string, err error) {
+	if err == nil {
+		atomic.AddInt64(&h.execs, 1)
+	} else {
+		atomic.AddInt64(&h.execErrs, 1)
+	}
+}
+
 // RowIterated implements RowIterated of the Hook interface.
 func (h *CounterHook) RowIterated(err error) {
+	if err == nil {
+		atomic.AddInt64(&h.rowsIterated, 1)
+	} else {
+		atomic.AddInt64(&h.rowErrs, 1)
+	}
+}
+
+// RowIteratedContext implements RowIterated of the Hook interface.
+func (h *CounterHook) RowIteratedContext(ctx context.Context, err error) {
 	if err == nil {
 		atomic.AddInt64(&h.rowsIterated, 1)
 	} else {
