@@ -53,14 +53,12 @@ type Driver interface {
 	AddHook(h Hook)
 }
 
-func New(open OpenFunc, openConnector OpenConnectorFunc, wrapped driver.Driver) Driver {
-	return &statsDriver{open: open, openConnector: openConnector, wrapped: wrapped}
+func New(wrapped driver.Driver) Driver {
+	return &statsDriver{wrapped: wrapped}
 }
 
 type statsDriver struct {
-	open          OpenFunc
-	openConnector OpenConnectorFunc
-	wrapped       driver.Driver
+	wrapped driver.Driver
 
 	hooks []Hook
 }
@@ -68,7 +66,7 @@ type statsDriver struct {
 func (s *statsDriver) Open(name string) (driver.Conn, error) {
 	// mockCTX := ctx17.Background()
 	// mockCTX.WithField("sappy", "Open").Error("sappy func (s *statsDriver) Open(name string) (driver.Conn, error)")
-	c, err := s.open(name)
+	c, err := s.wrapped.Open(name)
 	s.ConnOpened(err)
 	if err != nil {
 		return c, err
