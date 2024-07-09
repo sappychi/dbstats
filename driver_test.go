@@ -35,10 +35,10 @@ func init() {
 	queryer = &fakeDriver{isQueryer: true}
 	execer = &fakeDriver{isExecer: true}
 	execerQueryer = &fakeDriver{isQueryer: true, isExecer: true}
-	stats = New(fake.Open)
-	queryerStats = New(queryer.Open)
-	execerStats = New(execer.Open)
-	execerQueryerStats = New(execerQueryer.Open)
+	stats = New(fake)
+	queryerStats = New(queryer)
+	execerStats = New(execer)
+	execerQueryerStats = New(execerQueryer)
 	stats.AddHook(hook)
 	queryerStats.AddHook(hook)
 	execerStats.AddHook(hook)
@@ -79,6 +79,34 @@ func (d *fakeDriver) Open(name string) (driver.Conn, error) {
 		return &fakeExecer{}, nil
 	}
 	return &fakeConn{}, nil
+}
+
+func (d *fakeDriver) OpenConnector(dsn string) (driver.Connector, error) {
+	return &fakeConnector{d: d, name: dsn}, nil
+}
+
+type fakeConnector struct {
+	d    *fakeDriver // the driver in which to store stats
+	name string
+}
+
+func (c *fakeConnector) Connect(ctx context.Context) (driver.Conn, error) {
+	c.d.openNames = append(c.d.openNames, c.name)
+	if connOpenErr != nil {
+		return nil, connOpenErr
+	}
+	if c.d.isExecer && c.d.isQueryer {
+		return &fakeExecerQueryer{}, nil
+	} else if c.d.isQueryer {
+		return &fakeQueryer{}, nil
+	} else if c.d.isExecer {
+		return &fakeExecer{}, nil
+	}
+	return &fakeConn{}, nil
+}
+
+func (c *fakeConnector) Driver() driver.Driver {
+	return c.d
 }
 
 type fakeConn struct{}
@@ -199,6 +227,7 @@ type fakeHook struct {
 	execedCount       int
 	rowIteratedCount  int
 	numErr            int
+	debug             []string
 }
 
 func (h *fakeHook) reset() {
@@ -228,6 +257,7 @@ func (h *fakeHook) ConnClosed(err error) {
 	}
 }
 func (h *fakeHook) StmtPrepared(query string, err error) {
+
 	h.stmtPreparedCount++
 }
 func (h *fakeHook) StmtClosed(err error) {
@@ -265,6 +295,7 @@ func (h *fakeHook) ConnClosedContext(ctx context.Context, err error) {
 	}
 }
 func (h *fakeHook) StmtPreparedContext(ctx context.Context, query string, err error) {
+	h.debug = append(h.debug, query)
 	h.stmtPreparedCount++
 }
 func (h *fakeHook) StmtClosedContext(ctx context.Context, err error) {
@@ -330,7 +361,7 @@ func TestDriverHandlesExecerQueryerCorrectly(t *testing.T) {
 	s, _ := db.Prepare("SELECT * FROM my_table WHERE id=?")
 	s.Close()
 	if hook.stmtPreparedCount != 1 {
-		t.Errorf("Expected StatementPrepared to be called 1 time, got %d", hook.stmtPreparedCount)
+		t.Errorf("sappy Expected StatementPrepared to be called 1 time, got %d, %v", hook.stmtPreparedCount, hook.debug)
 	}
 }
 
