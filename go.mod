@@ -1,3 +1,3 @@
-module github.com/17media/dbstats
+module github.com/sappychi/dbstats
 
 go 1.13
