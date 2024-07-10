@@ -64,8 +64,6 @@ type statsDriver struct {
 }
 
 func (s *statsDriver) Open(name string) (driver.Conn, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "Open").Error("sappy func (s *statsDriver) Open(name string) (driver.Conn, error)")
 	c, err := s.wrapped.Open(name)
 	s.ConnOpened(err)
 	if err != nil {
@@ -89,76 +87,43 @@ func (s *statsDriver) Open(name string) (driver.Conn, error) {
 }
 
 func (s *statsDriver) OpenConnector(name string) (driver.Connector, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "Open").Error("sappy OpenConnector(name string)")
 	driverContext := s.wrapped.(driver.DriverContext)
 	c, err := driverContext.OpenConnector(name)
-	s.ConnOpened(err)
 	if err != nil {
 		return c, err
 	}
 	statc := &statsConnector{d: s, wrapped: c}
 	return statc, nil
-	// q, isQ := c.(driver.Queryer)
-	// e, isE := c.(driver.Execer)
-	// if isE && isQ {
-	// 	return &statsExecerQueryer{
-	// 		statsConn:    statc,
-	// 		statsQueryer: &statsQueryer{statsConn: statc, wrapped: q},
-	// 		statsExecer:  &statsExecer{statsConn: statc, wrapped: e},
-	// 	}, nil
-	// } else if isQ {
-	// 	return &statsQueryer{statsConn: statc, wrapped: q}, nil
-	// } else if isE {
-	// 	return &statsExecer{statsConn: statc, wrapped: e}, nil
-	// }
-	// return statc, nil
 }
 
-func (s *statsDriver) OpenContext(ctx context.Context, name string) (driver.Conn, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "Open").Error("sappy OpenContext(name string)")
-	driverContext := s.wrapped.(driver.DriverContext)
-	connector, err := driverContext.OpenConnector(name)
-	c, _ := connector.Connect(ctx)
-	s.ConnOpenedContext(ctx, err)
-	if err != nil {
-		return c, err
-	}
+// func (s *statsDriver) OpenContext(ctx context.Context, name string) (driver.Conn, error) {
+// 	// mockCTX := ctx17.Background()
+// 	// mockCTX.WithField("sappy", "Open").Error("sappy OpenContext(name string)")
+// 	driverContext := s.wrapped.(driver.DriverContext)
+// 	connector, err := driverContext.OpenConnector(name)
+// 	c, _ := connector.Connect(ctx)
+// 	s.ConnOpenedContext(ctx, err)
+// 	if err != nil {
+// 		return c, err
+// 	}
 
-	statc := &statsConnContext{d: s, wrapped: c}
-	q, isQ := c.(driver.QueryerContext)
-	// return &statsQueryerContext{statsConnContext: statc, wrapped: q}, nil
-	e, isE := c.(driver.ExecerContext)
-	if isE && isQ {
-		return &statsExecerQueryerContext{
-			statsConnContext:    statc,
-			statsQueryerContext: &statsQueryerContext{statsConnContext: statc, wrapped: q},
-			statsExecerContext:  &statsExecerContext{statsConnContext: statc, wrapped: e},
-		}, nil
-	} else if isQ {
-		return &statsQueryerContext{statsConnContext: statc, wrapped: q}, nil
-	} else if isE {
-		return &statsExecerContext{statsConnContext: statc, wrapped: e}, nil
-	}
-	return statc, nil
+// 	statc := &statsConnContext{d: s, wrapped: c}
+// 	q, isQ := c.(driver.QueryerContext)
+// 	e, isE := c.(driver.ExecerContext)
+// 	if isE && isQ {
+// 		return &statsExecerQueryerContext{
+// 			statsConnContext:    statc,
+// 			statsQueryerContext: &statsQueryerContext{statsConnContext: statc, wrapped: q},
+// 			statsExecerContext:  &statsExecerContext{statsConnContext: statc, wrapped: e},
+// 		}, nil
+// 	} else if isQ {
+// 		return &statsQueryerContext{statsConnContext: statc, wrapped: q}, nil
+// 	} else if isE {
+// 		return &statsExecerContext{statsConnContext: statc, wrapped: e}, nil
+// 	}
+// 	return statc, nil
 
-	// statc := &statsConn{d: s, wrapped: c}
-	// q, isQ := c.(driver.Queryer)
-	// e, isE := c.(driver.Execer)
-	// if isE && isQ {
-	// 	return &statsExecerQueryer{
-	// 		statsConn:    statc,
-	// 		statsQueryer: &statsQueryer{statsConn: statc, wrapped: q},
-	// 		statsExecer:  &statsExecer{statsConn: statc, wrapped: e},
-	// 	}, nil
-	// } else if isQ {
-	// 	return &statsQueryer{statsConn: statc, wrapped: q}, nil
-	// } else if isE {
-	// 	return &statsExecer{statsConn: statc, wrapped: e}, nil
-	// }
-	// return statc, nil
-}
+// }
 
 func (s *statsDriver) AddHook(h Hook) {
 	s.hooks = append(s.hooks, h)
@@ -270,8 +235,6 @@ type statsConnector struct {
 }
 
 func (conn *statsConnector) Connect(ctx context.Context) (driver.Conn, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "debug").Error("sappy debug func (conn *statsConnector) Connect(ctx context.Context) (driver.Conn, error)")
 	c, err := conn.wrapped.Connect(ctx)
 	conn.d.ConnOpenedContext(ctx, err)
 	if err != nil {
@@ -280,7 +243,6 @@ func (conn *statsConnector) Connect(ctx context.Context) (driver.Conn, error) {
 
 	statc := &statsConnContext{d: conn.d, wrapped: c}
 	q, isQ := c.(driver.QueryerContext)
-	// return &statsQueryerContext{statsConnContext: statc, wrapped: q}, nil
 	e, isE := c.(driver.ExecerContext)
 	if isE && isQ {
 		return &statsExecerQueryerContext{
@@ -404,12 +366,10 @@ type statsQueryer struct {
 }
 
 func (q *statsQueryer) Query(query string, args []driver.Value) (driver.Rows, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "Query").Error("sappy Query")
 	start := time.Now()
-	r, err := q.wrapped.Query(query, args) // 真正執行
+	r, err := q.wrapped.Query(query, args)
 	dur := time.Now().Sub(start)
-	q.statsConn.d.Queried(dur, query, err) // sappy: 印出來
+	q.statsConn.d.Queried(dur, query, err)
 	if err == nil {
 		r = &statsRows{d: q.statsConn.d, wrapped: r}
 	}
@@ -422,8 +382,6 @@ type statsQueryerContext struct {
 }
 
 func (q *statsQueryerContext) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "QueryContext").Error("sappy QueryContext")
 	start := time.Now()
 	r, err := q.wrapped.QueryContext(ctx, query, args)
 	dur := time.Now().Sub(start)
@@ -453,8 +411,6 @@ type statsExecerContext struct {
 }
 
 func (e *statsExecerContext) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
-	// mockCTX := ctx17.Background()
-	// mockCTX.WithField("sappy", "ExecContext").Error("sappy ExecContext")
 	start := time.Now()
 	r, err := e.wrapped.ExecContext(ctx, query, args)
 	dur := time.Now().Sub(start)

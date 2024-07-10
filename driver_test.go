@@ -96,11 +96,11 @@ func (c *fakeConnector) Connect(ctx context.Context) (driver.Conn, error) {
 		return nil, connOpenErr
 	}
 	if c.d.isExecer && c.d.isQueryer {
-		return &fakeExecerQueryer{}, nil
+		return &fakeExecerQueryerContext{}, nil
 	} else if c.d.isQueryer {
-		return &fakeQueryer{}, nil
+		return &fakeQueryerContext{}, nil
 	} else if c.d.isExecer {
-		return &fakeExecer{}, nil
+		return &fakeExecerContext{}, nil
 	}
 	return &fakeConn{}, nil
 }
@@ -145,6 +145,53 @@ func (q *fakeExecerQueryer) Query(query string, args []driver.Value) (driver.Row
 	return &fakeRows{}, nil
 }
 func (e *fakeExecerQueryer) Exec(query string, args []driver.Value) (driver.Result, error) {
+	execerCalled = true
+	return &fakeResult{}, nil
+}
+
+type fakeConnContext struct{}
+
+func (c *fakeConnContext) Prepare(query string) (driver.Stmt, error) {
+	if useColumnConverter {
+		return &fakeColumnCoverter{}, nil
+	}
+	return &fakeStmt{}, nil
+}
+func (c *fakeConnContext) Close() error {
+	return connCloseErr
+}
+func (c *fakeConnContext) Begin() (driver.Tx, error) {
+	return &fakeTx{}, nil
+}
+
+func (c *fakeConnContext) PrepareContext(ctx context.Context, query string) (driver.Stmt, error) {
+	if useColumnConverter {
+		return &fakeColumnCoverter{}, nil
+	}
+	return &fakeStmt{}, nil
+}
+
+type fakeQueryerContext struct{ fakeConnContext }
+
+func (q *fakeQueryerContext) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	queryerCalled = true
+	return &fakeRows{}, nil
+}
+
+type fakeExecerContext struct{ fakeConnContext }
+
+func (e *fakeExecerContext) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+	execerCalled = true
+	return &fakeResult{}, nil
+}
+
+type fakeExecerQueryerContext struct{ fakeConnContext }
+
+func (q *fakeExecerQueryerContext) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	queryerCalled = true
+	return &fakeRows{}, nil
+}
+func (e *fakeExecerQueryerContext) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
 	execerCalled = true
 	return &fakeResult{}, nil
 }
@@ -227,7 +274,6 @@ type fakeHook struct {
 	execedCount       int
 	rowIteratedCount  int
 	numErr            int
-	debug             []string
 }
 
 func (h *fakeHook) reset() {
@@ -257,7 +303,6 @@ func (h *fakeHook) ConnClosed(err error) {
 	}
 }
 func (h *fakeHook) StmtPrepared(query string, err error) {
-
 	h.stmtPreparedCount++
 }
 func (h *fakeHook) StmtClosed(err error) {
@@ -295,7 +340,6 @@ func (h *fakeHook) ConnClosedContext(ctx context.Context, err error) {
 	}
 }
 func (h *fakeHook) StmtPreparedContext(ctx context.Context, query string, err error) {
-	h.debug = append(h.debug, query)
 	h.stmtPreparedCount++
 }
 func (h *fakeHook) StmtClosedContext(ctx context.Context, err error) {
@@ -361,7 +405,7 @@ func TestDriverHandlesExecerQueryerCorrectly(t *testing.T) {
 	s, _ := db.Prepare("SELECT * FROM my_table WHERE id=?")
 	s.Close()
 	if hook.stmtPreparedCount != 1 {
-		t.Errorf("sappy Expected StatementPrepared to be called 1 time, got %d, %v", hook.stmtPreparedCount, hook.debug)
+		t.Errorf("Expected StatementPrepared to be called 1 time, got %d", hook.stmtPreparedCount)
 	}
 }
 
@@ -503,7 +547,7 @@ func TestOpenReturnsErr(t *testing.T) {
 	case err != myErr:
 		t.Errorf("Expected error to be returned")
 	case hook.connOpenedCount != 1:
-		t.Errorf("Expected ConnOpen to be called")
+		t.Errorf("Expected ConnOpen to be called 1 times, got %v times", hook.connOpenedCount)
 	case hook.numErr == 0:
 		t.Errorf("Expected error to be passed to hook")
 	}
