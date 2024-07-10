@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"io"
 	"time"
-	// ctx17 "github.com/17media/api/base/ctx"
 )
 
 // Hook is an interface through which database events can be received. A Hook may received
