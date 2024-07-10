@@ -96,35 +96,6 @@ func (s *statsDriver) OpenConnector(name string) (driver.Connector, error) {
 	return statc, nil
 }
 
-// func (s *statsDriver) OpenContext(ctx context.Context, name string) (driver.Conn, error) {
-// 	// mockCTX := ctx17.Background()
-// 	// mockCTX.WithField("sappy", "Open").Error("sappy OpenContext(name string)")
-// 	driverContext := s.wrapped.(driver.DriverContext)
-// 	connector, err := driverContext.OpenConnector(name)
-// 	c, _ := connector.Connect(ctx)
-// 	s.ConnOpenedContext(ctx, err)
-// 	if err != nil {
-// 		return c, err
-// 	}
-
-// 	statc := &statsConnContext{d: s, wrapped: c}
-// 	q, isQ := c.(driver.QueryerContext)
-// 	e, isE := c.(driver.ExecerContext)
-// 	if isE && isQ {
-// 		return &statsExecerQueryerContext{
-// 			statsConnContext:    statc,
-// 			statsQueryerContext: &statsQueryerContext{statsConnContext: statc, wrapped: q},
-// 			statsExecerContext:  &statsExecerContext{statsConnContext: statc, wrapped: e},
-// 		}, nil
-// 	} else if isQ {
-// 		return &statsQueryerContext{statsConnContext: statc, wrapped: q}, nil
-// 	} else if isE {
-// 		return &statsExecerContext{statsConnContext: statc, wrapped: e}, nil
-// 	}
-// 	return statc, nil
-
-// }
-
 func (s *statsDriver) AddHook(h Hook) {
 	s.hooks = append(s.hooks, h)
 }
