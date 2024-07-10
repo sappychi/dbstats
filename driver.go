@@ -8,13 +8,6 @@ import (
 	// ctx17 "github.com/17media/api/base/ctx"
 )
 
-// OpenFunc is the func used on driver.Driver. This is used as some driver libraries
-// (lib/pq for example) do not expose their driver.Driver struct, but do expose an Open
-// function.
-type OpenFunc func(name string) (driver.Conn, error)
-
-type OpenConnectorFunc func(name string) (driver.Connector, error)
-
 // Hook is an interface through which database events can be received. A Hook may received
 // multiple events concurrently. Each function's last argument is of type error which will
 // contain an error encountered while trying to perform the action. The one exception is
