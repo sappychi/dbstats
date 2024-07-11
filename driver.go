@@ -340,6 +340,7 @@ func (q *statsQueryer) Query(query string, args []driver.Value) (driver.Rows, er
 }
 
 type statsQueryerContext struct {
+	driver.QueryerContext
 	*statsConnContext
 	wrapped driver.QueryerContext
 }
@@ -369,6 +370,7 @@ func (e *statsExecer) Exec(query string, args []driver.Value) (driver.Result, er
 }
 
 type statsExecerContext struct {
+	driver.ExecerContext
 	*statsConnContext
 	wrapped driver.ExecerContext
 }
